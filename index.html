@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#041531">
+  <link rel="icon" type="image/png" href="TemplateData/favicon.png">
+  <link rel="apple-touch-icon" href="TemplateData/favicon.png">
+  <title>Credit Game · CreditDevice</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #041531; overflow: hidden; overscroll-behavior: none; }
+    body { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+    #unity-canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; display: block; background: #041531; }
+    #loader { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+              gap: 20px; color: #faf8f4; font-family: Inter, system-ui, -apple-system, sans-serif; text-align: center; }
+    #loader img { width: min(60vw, 340px); height: auto; }
+    #loader h1 { margin: 0; font-size: clamp(32px, 8vw, 72px); font-weight: 800; letter-spacing: -.02em; }
+    #loader h1 span { color: #ff9c3e; }
+    #bar { width: min(70vw, 420px); height: 14px; border-radius: 7px; background: #0b2a55; overflow: hidden; }
+    #fill { width: 0; height: 100%; background: #ff9c3e; transition: width .2s; }
+    #error { display: none; max-width: 80vw; color: #ff7a47; }
+  </style>
+</head>
+<body>
+  <canvas id="unity-canvas" tabindex="-1"></canvas>
+  <div id="loader">
+    <img src="TemplateData/logo_white.png" alt="CreditDevice">
+    <h1>Credit <span>Game</span></h1>
+    <div id="bar"><div id="fill"></div></div>
+    <div id="error"></div>
+  </div>
+
+  <script src="Build/519c3e93eef8e41611b9e36c6cac78fa.loader.js"></script>
+  <script>
+    var config = {
+      dataUrl: "Build/5fa5e90cbaacde3709f31c503dd6c4c5.data.unityweb",
+      frameworkUrl: "Build/f322e0f93b4bd7ce6be64c922da9afec.framework.js.unityweb",
+      codeUrl: "Build/aed5227f60d8f8c4a9d192f0b4f79c51.wasm.unityweb",
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: "CreditDevice",
+      productName: "Credit Game",
+      productVersion: "1.0",
+      // Retina-laptops (DPR 2) renderen anders ~3000 px breed: dat kost frames zonder zichtbaar verschil.
+      // Begrens op ~2400 px aan de lange kant; telefoons houden hun scherpte.
+      devicePixelRatio: Math.max(1, Math.min(window.devicePixelRatio || 1, 2,
+        2400 / Math.max(window.innerWidth, window.innerHeight)))
+    };
+
+    // Laptop/pc: trackpad-scroll, ctrl+scroll en pinch mogen de pagina niet zoomen of verschuiven
+    // (het spel vult het hele venster; scrollen heeft geen betekenis). Spatie/pijltjes ook niet laten scrollen.
+    // Uitzondering: het HTML-formulier (naam/lead) mag wel scrollen.
+    var inForm = function (e) { return e.target && e.target.closest && e.target.closest("#cg-form"); };
+    window.addEventListener("wheel", function (e) { if (!inForm(e)) e.preventDefault(); }, { passive: false });
+    ["gesturestart", "gesturechange", "gestureend"].forEach(function (type) {
+      document.addEventListener(type, function (e) { e.preventDefault(); }, { passive: false });
+    });
+    // HTML-formulier: toetsen moeten in de velden komen, niet bij Unity (die vangt toetsen op window af en blokkeert
+    // dan het typen). Deze listeners staan vóór createUnityInstance, dus ze lopen vóór die van Unity.
+    ["keydown", "keyup", "keypress"].forEach(function (type) {
+      window.addEventListener(type, function (e) {
+        if (!inForm(e)) return;
+        e.stopImmediatePropagation();
+        if (type === "keydown" && window.cgFormKey) window.cgFormKey(e);
+      }, true);
+    });
+    window.addEventListener("keydown", function (e) {
+      var tag = (e.target && e.target.tagName) || "";
+      if (tag !== "INPUT" && tag !== "TEXTAREA" && [" ", "ArrowUp", "ArrowDown", "PageUp", "PageDown"].indexOf(e.key) >= 0) e.preventDefault();
+    });
+    document.querySelector("#unity-canvas").addEventListener("pointerdown", function () { this.focus(); });
+
+    createUnityInstance(document.querySelector("#unity-canvas"), config, function (progress) {
+      document.getElementById("fill").style.width = (progress * 100) + "%";
+    }).then(function () {
+      document.getElementById("loader").style.display = "none";
+      document.querySelector("#unity-canvas").focus();   // spatie/enter werken meteen, zonder eerst te klikken
+    }).catch(function (message) {
+      var el = document.getElementById("error");
+      el.style.display = "block";
+      el.textContent = "Het spel kon niet laden. Probeer te verversen. (" + message + ")";
+    });
+  </script>
+</body>
+</html>
