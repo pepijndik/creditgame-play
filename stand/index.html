@@ -34,9 +34,7 @@
   li { display:flex; gap:1.2vw; align-items:center; font-size:2.9vh; padding:.9vh 1vw; border-radius:1.4vh; }
   li:first-child { background:var(--orange-soft); }
   .rank { width:4.4vh; height:4.4vh; border-radius:50%; display:grid; place-items:center; font-weight:800; font-size:2.3vh; color:var(--slate); flex:none; }
-  li:nth-child(1) .rank { background:var(--gold); color:var(--navy); }
-  li:nth-child(2) .rank { background:var(--silver); color:var(--navy); }
-  li:nth-child(3) .rank { background:var(--bronze); color:var(--navy); }
+  .rank img { width:5.6vh; height:5.6vh; display:block; }
   .who { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .who small { color:var(--slate); opacity:.8; font-size:.85em; }
   .score { font-weight:800; font-variant-numeric:tabular-nums; }
   .plays { color:var(--slate); opacity:.75; font-size:.8em; font-variant-numeric:tabular-nums; white-space:nowrap; }
@@ -75,7 +73,10 @@
         '<li><span class="rank"></span><span class="who">' + esc(e.name) + (e.company ? ' <small>· ' + esc(e.company) + '</small>' : '') + '</span>' +
         (e.plays > 1 ? '<span class="plays">' + e.plays + '×</span>' : '') + '<span class="score">' + e.score + '</span></li>').join('')
         : '<li class="empty">' + t[1] + '</li>';
-      el.querySelectorAll('.rank').forEach((r, i) => { r.textContent = i + 1; });
+      el.querySelectorAll('.rank').forEach((r, i) => {
+        if (i < 3) r.innerHTML = '<img src="static/trophy_' + (i + 1) + '.png" alt="' + (i + 1) + '">';
+        else r.textContent = i + 1;
+      });
     } catch (e) { /* netwerk even weg: laat de laatste stand staan */ }
   }
   const tick = () => ['defender', 'runner'].forEach(refresh);
