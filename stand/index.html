@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/png" href="static/favicon.png">
+<title>Credit Game · Standscherm</title>
+<style>
+  :root { --navy:#041531; --card:#0b2a55; --orange:#ff9c3e; --orange-soft:#ffecd7; --cream:#faf8f4; --paper:#e2ddd2; --slate:#2a3646;
+          --gold:#ffc43d; --silver:#cbd3e0; --bronze:#de9664; }
+  * { box-sizing: border-box; }
+  html, body { height:100%; margin:0; }
+  body { background:var(--navy); color:var(--cream); font-family:Inter, system-ui, sans-serif; display:flex; flex-direction:column;
+         padding:3vh 3vw; gap:3vh; overflow:hidden; position:relative; }
+  body::before, body::after { content:""; position:fixed; border-radius:50%; z-index:-1; }
+  body::before { width:70vh; height:70vh; left:-22vh; top:-25vh; background:rgba(11,42,85,.55); }
+  body::after { width:46vh; height:46vh; right:-14vh; top:-18vh; border:6vh solid rgba(255,156,62,.85); }
+  header { display:flex; align-items:center; justify-content:space-between; gap:3vw; }
+  .logo { height:5.5vh; width:auto; display:block; }
+  h1 { margin:1.2vh 0 0; font-size:8vh; line-height:1; font-weight:800; letter-spacing:-.02em; }
+  h1 span { color:var(--orange); }
+  .qr { background:var(--cream); padding:1.4vh 1.4vh 1vh; border-radius:2vh; text-align:center; color:var(--navy); font-weight:800;
+        font-size:1.9vh; box-shadow:0 1.2vh 0 rgba(0,0,0,.28); }
+  .qr div { display:block; line-height:0; } .qr canvas, .qr img { width:19vh !important; height:19vh !important; }
+  .qr span { display:block; margin-top:1vh; line-height:1.2; }
+  .cols { flex:1; display:grid; grid-template-columns:1fr 1fr; gap:2.5vw; min-height:0; }
+  section { background:var(--cream); color:var(--navy); border-radius:2.4vh; padding:2.6vh 2vw; overflow:hidden;
+            box-shadow:0 1.2vh 0 rgba(0,0,0,.28); }
+  section.live { outline:.8vh solid var(--orange); }
+  h2 { margin:0 0 1.6vh; font-size:3.8vh; font-weight:800; display:flex; align-items:center; gap:1.2vw;
+       padding-bottom:1.6vh; border-bottom:.3vh solid var(--paper); }
+  h2 img { height:6vh; }
+  ol { list-style:none; margin:0; padding:0; }
+  li { display:flex; gap:1.2vw; align-items:center; font-size:2.9vh; padding:.9vh 1vw; border-radius:1.4vh; }
+  li:first-child { background:var(--orange-soft); }
+  .rank { width:4.4vh; height:4.4vh; border-radius:50%; display:grid; place-items:center; font-weight:800; font-size:2.3vh; color:var(--slate); flex:none; }
+  li:nth-child(1) .rank { background:var(--gold); color:var(--navy); }
+  li:nth-child(2) .rank { background:var(--silver); color:var(--navy); }
+  li:nth-child(3) .rank { background:var(--bronze); color:var(--navy); }
+  .who { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .who small { color:var(--slate); opacity:.8; font-size:.85em; }
+  .score { font-weight:800; font-variant-numeric:tabular-nums; }
+  .empty { color:var(--slate); font-size:3vh; padding:2vh 1vw; }
+</style>
+</head>
+<body>
+<header>
+  <div><img class="logo" src="static/logo_white.png" alt="CreditDevice"><h1>Credit <span>Game</span></h1></div>
+  <div class="qr"><div id="qr"></div><span id="qrlabel">Scan &amp; speel mee</span></div>
+</header>
+<div class="cols">
+  <section class="live"><h2><img src="static/tower_scout.png" alt="">Debiteur Defender</h2><ol id="defender"></ol></section>
+  <section><h2><img src="static/player.png" alt="">Credit Runner</h2><ol id="runner"></ol></section>
+</div>
+<script src="static/qrcode.min.js"></script>
+<script>
+  // Parameters: ?api=https://host  &game=https://host/?src=qr  &lang=nl|en|de
+  // Op Cloudflare zet de Worker window.CG_GAME_URL (variabele GAME_URL): API op dezelfde host, QR naar de game.
+  // Naast de game (/stand/ in de WebGL-build): API is de Worker uit GameConfig.BackendUrl, QR naar deze host.
+  const BACKEND_URL = 'https://creditgame-api.pepijn-dik.workers.dev';
+  const params = new URLSearchParams(location.search);
+  const api = (params.get('api') || ('CG_GAME_URL' in window ? location.origin : BACKEND_URL)).replace(/\/$/, '');
+  const gameUrl = params.get('game') || window.CG_GAME_URL || new URL('../?src=qr', location.href).href;
+  const t = { nl: ['Scan & speel mee', 'Nog geen scores'], en: ['Scan & play along', 'No scores yet'], de: ['Scannen & mitspielen', 'Noch keine Punkte'] }[params.get('lang')] || ['Scan & speel mee', 'Nog geen scores'];
+  document.getElementById('qrlabel').textContent = t[0];
+  new QRCode(document.getElementById('qr'), { text: gameUrl, width: 256, height: 256, correctLevel: QRCode.CorrectLevel.M });
+
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  async function refresh(mode) {
+    const el = document.getElementById(mode);
+    try {
+      const res = await fetch(api + '/api/leaderboard?mode=' + mode + '&limit=8', { cache: 'no-store' });
+      const { entries } = await res.json();
+      el.innerHTML = entries.length ? entries.map((e) =>
+        '<li><span class="rank"></span><span class="who">' + esc(e.name) + (e.company ? ' <small>· ' + esc(e.company) + '</small>' : '') + '</span><span class="score">' + e.score + '</span></li>').join('')
+        : '<li class="empty">' + t[1] + '</li>';
+      el.querySelectorAll('.rank').forEach((r, i) => { r.textContent = i + 1; });
+    } catch (e) { /* netwerk even weg: laat de laatste stand staan */ }
+  }
+  const tick = () => ['defender', 'runner'].forEach(refresh);
+  tick(); setInterval(tick, 5000);
+</script>
+</body>
+</html>
